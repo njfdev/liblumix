@@ -27,7 +27,7 @@ These are the requirements to install, but this is not an exhaustive list. It yo
 ```bash
 # for debian based systems
 sudo apt update
-sudo apt install git libssl-dev libpoco-dev libpugixml-dev ligjpeg-dev
+sudo apt install git libssl-dev libpoco-dev libpugixml-dev libjpeg-dev
 ```
 
 Then make a copy of this repository and go into the folder:
