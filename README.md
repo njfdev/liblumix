@@ -45,6 +45,8 @@ cd build
 
 Then, build and install the library:
 
+> NOTE: The build can sometimes fail when building the zlib dependency. If this happens, it is usually okay to run it a few more times until it successfully builds.
+
 ```bash
 cmake ../ -DCMAKE_BUILD_TYPE=Release
 make

@@ -1,0 +1,49 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Setup CMake
+        uses: actions/setup-cmake@v1
+        with:
+          cmake-version: "3.20.0"
+      - name: Configure and Build
+        run: |
+          mkdir build
+          cd build
+          cmake ../ -DCMAKE_BUILD_TYPE=Release
+          make
+          tar -czvf liblumix-${GITHUB_REF##*/}-linux-x86_64.tar.gz liblumix.so
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            Automated release for version ${{ github.ref }}.
+          draft: true
+          prerelease: false
+
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./build/liblumix-${GITHUB_REF##*/}-linux-x86_64.tar.gz
+          asset_name: liblumix-${GITHUB_REF##*/}-linux-x86_64.tar.gz
+          asset_content_type: application/gzip
