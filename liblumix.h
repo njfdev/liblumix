@@ -7,6 +7,9 @@
 #include <optional>
 #include <string>
 #include <algorithm>
+#include <thread>
+#include <atomic>
+#include <condition_variable>
 
 #include <pugixml.hpp>
 
@@ -109,9 +112,18 @@ namespace Lumix {
 
         std::string sessionId;
 
+        // separate thread variables
+        std::unique_ptr<std::thread> getStateThread;
+        std::atomic<bool> getStateThreadRunning = false;
+        std::condition_variable getStateThreadCondition;
+        std::mutex getStateThreadMutex;
+
         bool Connect(std::string cameraIp, std::string nameForConnection);
         pugi::xml_node SendCameraCommand(CameraRequestMode mode, std::optional<CameraRequestType> type, std::vector<std::string> params);
 
         bool GetPixelDataFromJPG(std::vector<unsigned char>& jpgFileData, std::vector<unsigned char>& pixelBuffer);
+
+        // thread functions
+        void GetStateThread();
     };
 }

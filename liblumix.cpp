@@ -11,9 +11,19 @@ Camera::Camera(std::string cameraIp, std::string nameForConnection) {
     if (!Connect(cameraIp, nameForConnection)) {
         throw std::runtime_error("Failed to connect to camera");
     }
+
+    // start GetState thread
+    getStateThreadRunning = true;
+    getStateThread = std::make_unique<std::thread>(&Camera::GetStateThread, this);
 }
 
 Camera::~Camera() {
+    // stop the GetState thread
+    getStateThreadRunning = false;
+    getStateThreadCondition.notify_all();
+    if (getStateThread->joinable()) {
+        getStateThread->join();
+    }
 }
 
 xml_node Camera::SendCameraCommand(CameraRequestMode mode, std::optional<CameraRequestType> type, std::vector<std::string> params) {
@@ -261,6 +271,17 @@ bool Camera::Connect(std::string cameraIp, std::string nameForConnection) {
     }
     
     return true;
+}
+
+void Camera::GetStateThread() {
+    while (getStateThreadRunning) {
+        // get the state every 1 second (but don't do anything with it)
+        SendCameraCommand(GetState, {}, {});
+
+        // sleep for 1 second
+        std::unique_lock<std::mutex> lock(getStateThreadMutex);
+        getStateThreadCondition.wait_for(lock, std::chrono::seconds(1));
+    }
 }
 
 bool Camera::TakePhoto() {
