@@ -13,11 +13,12 @@
 
 #include <pugixml.hpp>
 
-// only include pugixml if the environment is build
+// only include if the environment is build
 #if defined LIBLUMIX_BUILD || defined __INTELLISENSE__
 #include <cpr/cpr.h>
 #include "build/_deps/cppcodec-src/cppcodec/hex_lower.hpp"
 #include <jpeglib.h>
+#include <libraw/libraw.h>
 #endif
 
 namespace Lumix {
@@ -40,6 +41,10 @@ namespace Lumix {
         std::string filename;
         std::vector<unsigned char> rawFileData;
         std::vector<unsigned char> pixelBuffer;
+        int width;
+        int height;
+        int channels;
+        int bit_depth;
     };
 
     class Camera {
@@ -121,7 +126,8 @@ namespace Lumix {
         bool Connect(std::string cameraIp, std::string nameForConnection);
         pugi::xml_node SendCameraCommand(CameraRequestMode mode, std::optional<CameraRequestType> type, std::vector<std::string> params);
 
-        bool GetPixelDataFromJPG(std::vector<unsigned char>& jpgFileData, std::vector<unsigned char>& pixelBuffer);
+        bool GetPixelDataFromJPG(ImageData& imageData);
+        bool GetPixelDataFromRW2(ImageData& imageData);
 
         // thread functions
         void GetStateThread();

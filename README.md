@@ -30,6 +30,13 @@ sudo apt update
 sudo apt install git libssl-dev libpoco-dev libpugixml-dev libjpeg-dev libfmt-dev
 ```
 
+[LibRaw snapshot 202403](https://github.com/LibRaw/LibRaw/commit/12b0e5d60c57bb795382fda8494fc45f683550b8) is required for support of the Lumix S5II cameras. If you need support for these cameras, then you must build from source from this snapshot or later. If you have an older camera (released over 1-2 years ago), installing the latest stable release of LibRaw should be fine.
+
+```bash
+# ONLY if your camera was released over 1-2 years ago
+sudo apt install libraw
+```
+
 Then make a copy of this repository and go into the folder:
 
 ```bash

@@ -393,10 +393,10 @@ bool Camera::DownloadLatestPhoto(ImageData& imageData) {
     imageData.title = item.child("dc:title").text().as_string();
     imageData.date = item.child("dc:date").text().as_string();
 
-    // get the first JPG image, if it doesn't exist, get the first RW2 image
+    // get the first RW2 image, if it doesn't exist, get the first JPG image
     std::string imageDownloadUrl;
     for (std::string res : resList) {
-        if (res.find(".JPG") != std::string::npos) {
+        if (res.find(".RW2") != std::string::npos) {
             imageDownloadUrl = res;
             break;
         }
@@ -404,7 +404,7 @@ bool Camera::DownloadLatestPhoto(ImageData& imageData) {
 
     if (imageDownloadUrl.length() == 0) {
         for (std::string res : resList) {
-            if (res.find(".RW2") != std::string::npos) {
+            if (res.find(".JPG") != std::string::npos) {
                 imageDownloadUrl = res;
                 break;
             }
@@ -429,10 +429,15 @@ bool Camera::DownloadLatestPhoto(ImageData& imageData) {
     return true;
 }
 
-bool Camera::GetRawPixelData(ImageData& ImageData) {
-    // if the file is a JPG, get the pixel data
-    if (ImageData.filename.find(".JPG") != std::string::npos) {
-        if (!GetPixelDataFromJPG(ImageData.rawFileData, ImageData.pixelBuffer)) {
+bool Camera::GetRawPixelData(ImageData& imageData) {
+    // if the file is a RW2, get the pixel data
+    if (imageData.filename.find(".RW2") != std::string::npos) {
+        if (!GetPixelDataFromRW2(imageData)) {
+            return false;
+        }
+        return true;
+    } else if (imageData.filename.find(".JPG") != std::string::npos) {
+        if (!GetPixelDataFromJPG(imageData)) {
             return false;
         }
         return true;
@@ -443,7 +448,7 @@ bool Camera::GetRawPixelData(ImageData& ImageData) {
     return false;
 }
 
-bool Camera::GetPixelDataFromJPG(std::vector<unsigned char>& jpgFileData, std::vector<unsigned char>& pixelBuffer) {
+bool Camera::GetPixelDataFromJPG(ImageData& imageData) {
     // read using libjpeg
     struct jpeg_decompress_struct cinfo;
     struct jpeg_error_mgr jerr;
@@ -451,43 +456,85 @@ bool Camera::GetPixelDataFromJPG(std::vector<unsigned char>& jpgFileData, std::v
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_decompress(&cinfo);
 
-    jpeg_mem_src(&cinfo, jpgFileData.data(), jpgFileData.size());
+    jpeg_mem_src(&cinfo, imageData.rawFileData.data(), imageData.rawFileData.size());
 
     jpeg_read_header(&cinfo, TRUE);
     jpeg_start_decompress(&cinfo);
 
-    int width = cinfo.output_width;
-    int height = cinfo.output_height;
-    int channels = cinfo.output_components;
-    int bits = cinfo.data_precision;
-
-    std::cout << "Width: " << width << std::endl;
-    std::cout << "Height: " << height << std::endl;
-    std::cout << "Channels: " << channels << std::endl;
-    std::cout << "Bits: " << bits << std::endl;
+    imageData.width = cinfo.output_width;
+    imageData.height = cinfo.output_height;
+    imageData.channels = cinfo.output_components;
+    imageData.bit_depth = cinfo.data_precision;
 
     // size of a row
-    int row_stride = width * channels * bits / 8;
+    int row_stride = imageData.width * imageData.channels * imageData.bit_depth / 8;
 
     // save the pixel data
-    pixelBuffer.resize(row_stride * height);
+    imageData.pixelBuffer.resize(row_stride * imageData.height);
 
     JSAMPARRAY buffer = (*cinfo.mem->alloc_sarray)((j_common_ptr)&cinfo, JPOOL_IMAGE, row_stride, 1);
 
-    for (int i = 0; i < height; i++) {
+    for (int i = 0; i < imageData.height; i++) {
         jpeg_read_scanlines(&cinfo, buffer, 1);
-        std::memcpy(pixelBuffer.data() + i * row_stride, buffer[0], row_stride);
+        std::memcpy(imageData.pixelBuffer.data() + i * row_stride, buffer[0], row_stride);
     }
 
     jpeg_finish_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
 
     // swap the red and blue channels
-    for (int i = 0; i < pixelBuffer.size(); i += 3) {
-        unsigned char temp = pixelBuffer[i];
-        pixelBuffer[i] = pixelBuffer[i + 2];
-        pixelBuffer[i + 2] = temp;
+    for (int i = 0; i < imageData.pixelBuffer.size(); i += 3) {
+        unsigned char temp = imageData.pixelBuffer[i];
+        imageData.pixelBuffer[i] = imageData.pixelBuffer[i + 2];
+        imageData.pixelBuffer[i + 2] = temp;
     }
+
+    return true;
+}
+
+bool Camera::GetPixelDataFromRW2(ImageData& imageData) {
+    // read using LibRaw
+    libraw_data_t *processor = libraw_init(0);
+    if (processor == NULL) {
+        return false;
+    }
+
+    int ret = libraw_open_buffer(processor, imageData.rawFileData.data(), imageData.rawFileData.size());
+    if (ret != LIBRAW_SUCCESS) {
+        libraw_close(processor);
+        return false;
+    }
+
+    ret = libraw_unpack(processor);
+    if (ret != LIBRAW_SUCCESS) {
+        libraw_close(processor);
+        return false;
+    }
+
+    imageData.width = processor->sizes.width;
+    imageData.height = processor->sizes.height;
+    imageData.channels = processor->idata.colors;
+    imageData.bit_depth = processor->params.output_bps;
+
+    ret = libraw_dcraw_process(processor);
+    if (ret != LIBRAW_SUCCESS) {
+        libraw_close(processor);
+        return false;
+    }
+
+    libraw_processed_image_t *image = libraw_dcraw_make_mem_image(processor, &ret);
+    if (image == NULL) {
+        libraw_close(processor);
+        return false;
+    }
+
+    // save the pixel data
+    imageData.pixelBuffer.resize(image->data_size);
+    std::memcpy(imageData.pixelBuffer.data(), image->data, image->data_size);
+
+    libraw_dcraw_clear_mem(image);
+
+    libraw_close(processor);
 
     return true;
 }
