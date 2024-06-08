@@ -4,6 +4,12 @@
 
 This project provides a C++ driver for Panasonic Lumix cameras using the WiFi API used internally by the Lumix Sync app. This is a hobby project and I am not a professional C++ developer, so best code practices may not be used. However, I encourage you to make a Pull Request if you feel inclined.
 
+## Features
+
+- Connect to Lumix Camera using WiFI over LAN connection
+- Take a photo at any specified exposure length
+- Download and parse the RAW and JPEG versions of a photo that was taken
+
 ## Purpose for Building
 
 I have gotten interested into Astrophotography, which as you may expect, requires a camera. I could have bought a new camera, but I already have a good Lumix camera. However, there is no Linux driver out there to work with Astrophotography software. Panasonic offers an official SDK, however, it is Windows only, which will not work with my Raspberry Pi Controller.
